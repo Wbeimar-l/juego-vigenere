@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reto de Descifrado Vigenère</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #d35400;
+            --bg: #f4f6f7;
+            --outer-wheel-bg: #34495e;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background-color: var(--bg);
+            color: #333;
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            color: var(--primary);
+            margin-bottom: 5px;
+            font-size: 1.6rem;
+            text-align: center;
+        }
+
+        .setup-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            max-width: 600px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .game-panel {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            width: 100%;
+            max-width: 900px;
+        }
+
+        .reminder-tag {
+            background: var(--primary);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            max-width: 650px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            line-height: 1.4;
+            text-align: center;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .reminder-tag strong {
+            color: #f1c40f;
+        }
+
+        .line-indicator {
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: -5px;
+        }
+
+        .message-board {
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            width: 100%;
+            box-sizing: border-box;
+            display: flex;
+            flex-wrap: wrap; 
+            gap: 10px 15px;  
+            justify-content: center;
+            min-height: 80px;
+        }
+
+        .final-board {
+            background: #e8f8f5;
+            border: 2px dashed #2ecc71;
+            color: #117a65;
+            font-size: 1.1rem;
+            line-height: 1.5;
+            padding: 20px;
+            border-radius: 12px;
+            max-width: 650px;
+            width: 100%;
+            box-sizing: border-box;
+            display: none;
+            text-align: justify;
+            box-shadow: 0 4px 12px rgba(46,204,113,0.15);
+        }
+
+        .word-container {
+            display: flex;
+            gap: 3px; 
+        }
+
+        .letter-pair {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 30px;
+        }
+
+        .letter-box {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            border-radius: 6px;
+            transition: all 0.3s;
+            width: 100%;
+        }
+
+        .box-top {
+            height: 32px;
+            background: #e2e8f0;
+            border: 2px solid #cbd5e1;
+            font-size: 1rem;
+            color: #475569;
+        }
+
+        .box-top.active {
+            background: #f1c40f;
+            border-color: #f39c12;
+            color: #000;
+            transform: scale(1.06);
+            box-shadow: 0 0 10px rgba(241,196,15,0.5);
+            z-index: 2;
+        }
+
+        .box-top.revealed {
+            background: #2ecc71;
+            border-color: #27ae60;
+            color: white;
+        }
+
+        .box-bottom {
+            height: 16px;
+            font-size: 0.75rem;
+            color: #94a3b8;
+            margin-top: 2px;
+            text-transform: uppercase;
+        }
+
+        .box-bottom.active-key {
+            color: var(--accent);
+            font-weight: 900;
+        }
+
+        /* --- INTERFAZ DE LA RUEDA CON BOTONES A LOS LADOS --- */
+        .wheel-area {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 5px;
+            width: 100%;
+        }
+
+        /* Tamaño balanceado para que todo quepa en horizontal */
+        .wheel-container {
+            position: relative;
+            width: 240px;
+            height: 240px;
+            background: var(--outer-wheel-bg);
+            border-radius: 50%;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.18);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 4px solid var(--primary);
+            flex-shrink: 0;
+        }
+
+        .marker {
+            position: absolute;
+            top: -9px;
+            width: 0;
+            height: 0;
+            border-left: 9px solid transparent;
+            border-right: 9px solid transparent;
+            border-top: 16px solid #e74c3c;
+            z-index: 10;
+        }
+
+        .wheel-outer {
+            position: absolute;
+            width: 226px;
+            height: 226px;
+            border-radius: 50%;
+        }
+
+        .wheel-outer .letter {
+            color: #ffffff; 
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+        }
+
+        .wheel-inner {
+            position: absolute;
+            width: 154px;
+            height: 154px;
+            background: #f1c40f;
+            border-radius: 50%;
+            border: 3px solid #d35400;
+            transition: transform 0.2s ease-out;
+            box-shadow: inset 0 0 12px rgba(0,0,0,0.1);
+        }
+
+        .wheel-center {
+            position: absolute;
+            width: 38px;
+            height: 38px;
+            background: #d35400;
+            border-radius: 50%;
+        }
+
+        .letter {
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 11px;
+            transform-origin: 7px 113px;
+        }
+
+        .wheel-inner .letter {
+            transform-origin: 7px 77px;
+            color: #2c3e50;
+        }
+
+        /* Contenedores para las etiquetas de texto arriba de los botones */
+        .control-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .control-label {
+            font-size: 0.65rem;
+            font-weight: bold;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            text-align: center;
+            max-width: 55px; /* Evita que el texto ensanche la interfaz */
+            line-height: 1.1;
+        }
+
+        .btn-turn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 5px;
+            border-radius: 50%;
+            font-size: 1.2rem;
+            cursor: pointer;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 3px 5px rgba(0,0,0,0.1);
+            transition: 0.2s;
+        }
+
+        .btn-turn:hover {
+            background: #34495e;
+        }
+
+        /* --- TECLADO --- */
+        .alphabet-grid {
+            display: grid;
+            grid-template-columns: repeat(9, 1fr);
+            gap: 6px;
+            max-width: 500px;
+            width: 100%;
+        }
+
+        .btn-letter {
+            background: white;
+            border: 2px solid var(--primary);
+            padding: 10px 2px;
+            font-size: 1rem;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: 0.1s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            text-align: center;
+        }
+
+        .btn-letter:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        textarea, input, button.start-btn {
+            width: 100%;
+            padding: 12px;
+            margin-top: 5px;
+            margin-bottom: 15px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            box-sizing: border-box;
+            font-size: 1rem;
+            font-family: inherit;
+        }
+
+        textarea {
+            resize: vertical;
+            height: 100px;
+        }
+
+        button.start-btn {
+            background: #27ae60;
+            color: white;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+            font-size: 1.1rem;
+            transition: 0.2s;
+            margin-bottom: 0;
+        }
+
+        button.start-btn:hover {
+            background: #219653;
+        }
+
+        @media (max-width: 480px) {
+            .alphabet-grid {
+                grid-template-columns: repeat(7, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Descifrado Manual Vigenère</h1>
+    <p style="margin: 0 0 20px 0; color: #7f8c8d; font-size: 0.9rem; text-align: center;">Herramienta Interactiva de Criptografía</p>
+
+    <div class="setup-panel" id="setupPanel">
+        <h3>Panel de Configuración</h3>
+        <label>Escribe o pega tu párrafo largo aquí:</label>
+        <textarea id="cipherInput" placeholder="Ej. KBBF HW BH SDFFEIE GH SFIHED..."></textarea>
+        
+        <label>Palabra Clave:</label>
+        <input type="text" id="keyInput" value="" placeholder="Ej. SOL">
+        
+        <button class="start-btn" onclick="iniciarJuego()">¡Empezar a Descifrar!</button>
+    </div>
+
+    <div class="game-panel" id="gamePanel">
+        
+        <div class="reminder-tag" id="reminderText">
+            Gira el disco amarillo para alinear la <strong>Letra Clave</strong> bajo la flecha roja. Busca tu <strong>Letra Cifrada</strong> en el centro y presiona arriba su equivalente en blanco.
+        </div>
+
+        <div class="line-indicator" id="lineIndicator">Línea 1</div>
+
+        <div class="message-board" id="messageBoard"></div>
+
+        <div class="final-board" id="finalBoard"></div>
+
+        <div class="wheel-area" id="wheelArea">
+            
+            <div class="control-wrapper">
+                <div class="control-label">Girar Izq.</div>
+                <button class="btn-turn" onclick="rotarRueda(-1)">↺</button>
+            </div>
+
+            <div class="wheel-container">
+                <div class="marker"></div>
+                <div class="wheel-outer" id="outerWheel"></div>
+                <div class="wheel-inner" id="innerWheel"></div>
+                <div class="wheel-center"></div>
+            </div>
+
+            <div class="control-wrapper">
+                <div class="control-label">Girar Der.</div>
+                <button class="btn-turn" onclick="rotarRueda(1)">↻</button>
+            </div>
+
+        </div>
+
+        <div class="alphabet-grid" id="alphabetGrid"></div>
+    </div>
+
+    <script>
+        const alfabeto = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        let mensajeCifrado = "";
+        let clave = "";
+        let indiceActual = 0; 
+        let posicionRueda = 0; 
+        let lineasDeJuego = []; 
+
+        function inicializarRuedas() {
+            const outer = document.getElementById('outerWheel');
+            const inner = document.getElementById('innerWheel');
+            
+            for (let i = 0; i < 26; i++) {
+                const angulo = (i * 360) / 26;
+                const dOut = document.createElement('div');
+                dOut.className = 'letter';
+                dOut.innerText = alfabeto[i];
+                dOut.style.transform = `translate(106px, 4px) rotate(${angulo}deg)`;
+                outer.appendChild(dOut);
+
+                const dIn = document.createElement('div');
+                dIn.className = 'letter';
+                dIn.innerText = alfabeto[i];
+                dIn.style.transform = `translate(70px, 4px) rotate(${angulo}deg)`;
+                inner.appendChild(dIn);
+            }
+
+            const grid = document.getElementById('alphabetGrid');
+            grid.innerHTML = ""; 
+            for(let i = 0; i < 26; i++) {
+                const btn = document.createElement('button');
+                btn.className = 'btn-letter';
+                btn.innerText = alfabeto[i];
+                btn.onclick = () => verificarLetra(alfabeto[i]);
+                grid.appendChild(btn);
+            }
+        }
+
+        function rotarRueda(direccion) {
+            posicionRueda = (posicionRueda + direccion + 26) % 26;
+            const grados = -((posicionRueda * 360) / 26);
+            document.getElementById('innerWheel').style.transform = `rotate(${grados}deg)`;
+        }
+
+        function iniciarJuego() {
+            let textoSucio = document.getElementById('cipherInput').value.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            mensajeCifrado = textoSucio.replace(/\n/g, " ").replace(/\s+/g, " ").trim();
+            clave = document.getElementById('keyInput').value.toUpperCase().replace(/[^A-Z]/g, '');
+
+            if (!mensajeCifrado || !clave) {
+                alert("Por favor llena ambos campos.");
+                return;
+            }
+
+            document.getElementById('setupPanel').style.display = 'none';
+            document.getElementById('gamePanel').style.display = 'flex';
+            document.getElementById('messageBoard').style.display = 'flex';
+            document.getElementById('lineIndicator').style.display = 'block';
+            document.getElementById('wheelArea').style.display = 'flex';
+            document.getElementById('alphabetGrid').style.display = 'grid';
+            document.getElementById('finalBoard').style.display = 'none';
+
+            indiceActual = 0;
+            segmentarTextoEnLineas();
+            dibujarTablero();
+            validarCaracterActual();
+        }
+
+        function segmentarTextoEnLineas() {
+            lineasDeJuego = [];
+            const palabras = mensajeCifrado.split(" ");
+            let lineaActual = "";
+            let idxGlobalAcumulado = 0;
+
+            palabras.forEach((palabra) => {
+                if ((lineaActual + palabra).length < 15) { 
+                    lineaActual += (lineaActual === "" ? "" : " ") + palabra;
+                } else {
+                    if(lineaActual !== "") {
+                        lineasDeJuego.push({ texto: lineaActual, inicioIdx: idxGlobalAcumulado });
+                        idxGlobalAcumulado += lineaActual.length + 1;
+                    }
+                    lineaActual = palabra;
+                }
+            });
+            if(lineaActual !== "") {
+                lineasDeJuego.push({ texto: lineaActual, inicioIdx: idxGlobalAcumulado });
+            }
+        }
+
+        function obtenerLineaActiva() {
+            for (let i = lineasDeJuego.length - 1; i >= 0; i--) {
+                if (indiceActual >= lineasDeJuego[i].inicioIdx) {
+                    return { ...lineasDeJuego[i], numero: i + 1 };
+                }
+            }
+            return { ...lineasDeJuego[0], numero: 1 };
+        }
+
+        function dibujarTablero() {
+            const tablero = document.getElementById('messageBoard');
+            tablero.innerHTML = "";
+
+            const { texto, inicioIdx, numero } = obtenerLineaActiva();
+            document.getElementById('lineIndicator').innerText = `Línea ${numero} de ${lineasDeJuego.length}`;
+
+            const palabras = texto.split(" ");
+            let letraLocalIdx = inicioIdx;
+            let letrasRealesContadas = contarLetrasA_ZHasta(inicioIdx);
+
+            palabras.forEach((palabra) => {
+                if (palabra === "") return;
+
+                const wordContainer = document.createElement('div');
+                wordContainer.className = 'word-container';
+
+                for (let i = 0; i < palabra.length; i++) {
+                    const caracter = palabra[i];
+                    const pair = document.createElement('div');
+                    pair.className = 'letter-pair';
+
+                    const boxTop = document.createElement('div');
+                    boxTop.className = 'letter-box box-top';
+                    const boxBottom = document.createElement('div');
+                    boxBottom.className = 'letter-box box-bottom';
+
+                    if (alfabeto.includes(caracter)) {
+                        const currentLetraIdx = letraLocalIdx;
+                        const letraClave = clave[letrasRealesContadas % clave.length];
+                        boxBottom.innerText = letraClave;
+
+                        if (currentLetraIdx === indiceActual) {
+                            boxTop.classList.add('active');
+                            boxTop.innerText = caracter;
+                            boxBottom.classList.add('active-key');
+                        } else if (currentLetraIdx < indiceActual) {
+                            boxTop.classList.add('revealed');
+                            boxTop.innerText = obtenerLetraDecodificada(currentLetraIdx);
+                        } else {
+                            boxTop.innerText = caracter;
+                        }
+                        letrasRealesContadas++;
+                    } else {
+                        boxTop.innerText = caracter;
+                        boxBottom.innerText = "";
+                    }
+
+                    pair.appendChild(boxTop);
+                    pair.appendChild(boxBottom);
+                    wordContainer.appendChild(pair);
+                    letraLocalIdx++;
+                }
+
+                tablero.appendChild(wordContainer);
+                letraLocalIdx++; 
+            });
+        }
+
+        function contarLetrasA_ZHasta(limiteIdx) {
+            let cuenta = 0;
+            for(let i = 0; i < limiteIdx; i++) {
+                if(alfabeto.includes(mensajeCifrado[i])) cuenta++;
+            }
+            return cuenta;
+        }
+
+        function obtenerLetraDecodificada(posGlobal) {
+            let reales = 0;
+            for(let i = 0; i < posGlobal; i++) {
+                if(alfabeto.includes(mensajeCifrado[i])) reales++;
+            }
+            const lClave = clave[reales % clave.length];
+            const idxC = alfabeto.indexOf(lClave);
+            const idxM = alfabeto.indexOf(mensajeCifrado[posGlobal]);
+            return alfabeto[(idxM - idxC + 26) % 26];
+        }
+
+        function obtenerEstadoActual() {
+            let reales = contarLetrasA_ZHasta(indiceActual);
+            const letraClave = clave[reales % clave.length];
+            const letraCifrada = mensajeCifrado[indiceActual];
+            return { letraClave, letraCifrada };
+        }
+
+        function validarCaracterActual() {
+            if (indiceActual >= mensajeCifrado.length) {
+                finalizarJuegoExitoso();
+                return;
+            }
+
+            if (mensajeCifrado[indiceActual] === " " || !alfabeto.includes(mensajeCifrado[indiceActual])) {
+                indiceActual++;
+                validarCaracterActual();
+                dibujarTablero();
+            }
+        }
+
+        function finalizarJuegoExitoso() {
+            const reminder = document.getElementById('reminderText');
+            reminder.innerHTML = "<strong>¡Misión Cumplida!</strong> Has descifrado el manuscrito completo con éxito.";
+            reminder.style.background = "#2ecc71";
+
+            document.getElementById('messageBoard').style.display = 'none';
+            document.getElementById('lineIndicator').style.display = 'none';
+            document.getElementById('wheelArea').style.display = 'none';
+            document.getElementById('alphabetGrid').style.display = 'none';
+
+            let textoDescifradoCompleto = "";
+            for (let i = 0; i < mensajeCifrado.length; i++) {
+                if (alfabeto.includes(mensajeCifrado[i])) {
+                    textoDescifradoCompleto += obtenerLetraDecodificada(i);
+                } else {
+                    textoDescifradoCompleto += mensajeCifrado[i];
+                }
+            }
+
+            const finalBoard = document.getElementById('finalBoard');
+            finalBoard.innerHTML = `<strong>Mensaje Revelado:</strong><br><br>${textoDescifradoCompleto}`;
+            finalBoard.style.display = 'block';
+        }
+
+        function verificarLetra(letraSeleccionada) {
+            if (indiceActual >= mensajeCifrado.length) return;
+
+            const { letraClave, letraCifrada } = obtenerEstadoActual();
+            const idxClave = alfabeto.indexOf(letraClave);
+            
+            if (posicionRueda !== idxClave) {
+                alert(`¡La rueda no está alineada! Mueve el disco amarillo hasta que la letra clave "${letraClave}" quede bajo la flecha roja.`);
+                return;
+            }
+
+            const idxCifrada = alfabeto.indexOf(letraCifrada);
+            const idxCorrecto = (idxCifrada - idxClave + 26) % 26;
+            const letraCorrecta = alfabeto[idxCorrecto];
+
+            if (letraSeleccionada === letraCorrecta) {
+                indiceActual++;
+                dibujarTablero();
+                validarCaracterActual();
+            } else {
+                alert(`Incorrecto. Busca la "${letraCifrada}" en el centro (amarillo) y presiona su pareja exterior (blanca).`);
+            }
+        }
+
+        inicializarRuedas();
+    </script>
+</body>
+</html>
